@@ -7,11 +7,14 @@
     "dev": "node --watch src/server.js"
   },
   "dependencies": {
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.1",
     "express": "^5.2.1",
+    "helmet": "^7.2.0",
     "nodemon": "^3.1.14",
     "postgres": "^3.4.9",
-    "redis": "^5.11.0"
+    "redis": "^5.11.0",
+    "ua-parser-js": "^1.0.38"
   }
 }

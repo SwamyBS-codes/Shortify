@@ -3,45 +3,60 @@ import { pathToFileURL } from 'node:url'
 
 export async function setupDatabase() {
   await postgresPool`
-    create table if not exists url_short_ner (
+    create table if not exists users (
       id bigserial primary key,
-      code text not null unique,
-      original_url text not null,
-      short_url text not null,
-      clicks integer not null default 0,
+      name text,
+      email text unique,
+      password_hash text not null,
       created_at timestamptz not null default now()
     )
   `
 
-  // Keep one row per original_url so a unique index can be created safely.
   await postgresPool`
-    delete from url_short_ner older
-    using url_short_ner newer
-    where older.original_url = newer.original_url
-      and older.id < newer.id
+    create table if not exists urls (
+      id bigserial primary key,
+      original_url text not null,
+      short_code text not null unique,
+      custom_alias text unique,
+      title text,
+      password_hash text,
+      is_password_protected boolean not null default false,
+      expiration_type text,
+      expires_at timestamptz,
+      click_count integer not null default 0,
+      is_active boolean not null default true,
+      created_at timestamptz not null default now(),
+      updated_at timestamptz not null default now()
+    )
   `
 
   await postgresPool`
-    create unique index if not exists url_short_ner_original_url_unique
-    on url_short_ner (original_url)
+    create table if not exists url_visits (
+      id bigserial primary key,
+      url_id bigint not null references urls(id) on delete cascade,
+      ip_address text,
+      country text,
+      device text,
+      browser text,
+      os text,
+      referrer text,
+      visited_at timestamptz not null default now()
+    )
   `
 
-  const [{ count }] = await postgresPool`
-    select count(*)::int as count
-    from url_short_ner
+  await postgresPool`
+    create unique index if not exists urls_custom_alias_unique on urls (custom_alias)
   `
 
-  if (Number(count) === 0) {
-    await postgresPool`
-      select setval(
-        pg_get_serial_sequence('url_short_ner', 'id'),
-        1,
-        false
-      )
-    `
-  }
+  await postgresPool`
+    create unique index if not exists urls_short_code_unique on urls (short_code)
+  `
 
-  console.log('Table url_short_ner is ready')
+  await postgresPool`
+    create index if not exists url_visits_url_id_idx on url_visits (url_id)
+  `
+
+  console.log('Database schema is ready')
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -50,7 +65,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       await postgresPool.end()
     })
     .catch(async (error) => {
-      console.error('Failed to create table:', error)
+      console.error('Failed to create schema:', error)
       await postgresPool.end()
       process.exit(1)
     })

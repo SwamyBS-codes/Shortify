@@ -6,10 +6,15 @@ function toUiLink(row) {
     title: new URL(row.original_url).hostname.replace(/^www\./, ''),
     longUrl: row.original_url,
     shortUrl: row.short_url,
-    code: row.code,
+    code: row.code || row.short_code,
     clicks: row.clicks,
     createdAt: new Date(row.created_at).toLocaleString(),
-    status: 'Active',
+    customAlias: row.custom_alias || null,
+    passwordProtected: Boolean(row.is_password_protected),
+    expiresAt: row.expires_at ? new Date(row.expires_at).toLocaleString() : null,
+    expirationType: row.expiration_type || 'none',
+    isActive: row.is_active !== false,
+    status: row.is_active === false ? 'Disabled' : row.expires_at && new Date(row.expires_at) < new Date() ? 'Expired' : row.is_password_protected ? 'Password protected' : 'Active',
   }
 }
 
@@ -40,10 +45,15 @@ export async function createLink(payload) {
     title: new URL(data.original_url).hostname.replace(/^www\./, ''),
     longUrl: data.original_url,
     shortUrl: data.short_url,
-    code: data.code,
+    code: data.code || data.short_code,
     clicks: data.clicks,
     createdAt: new Date(data.created_at).toLocaleString(),
-    status: 'Active',
+    customAlias: data.custom_alias || null,
+    passwordProtected: Boolean(data.is_password_protected),
+    expiresAt: data.expires_at ? new Date(data.expires_at).toLocaleString() : null,
+    expirationType: data.expiration_type || 'none',
+    isActive: data.is_active !== false,
+    status: data.is_active === false ? 'Disabled' : data.expires_at && new Date(data.expires_at) < new Date() ? 'Expired' : data.is_password_protected ? 'Password protected' : 'Active',
   }
 }
 

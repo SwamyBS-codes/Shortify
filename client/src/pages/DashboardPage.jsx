@@ -7,9 +7,9 @@ function DashboardPage() {
   return (
     <main className="app-shell">
       <HeroSection />
-      <MetricsRow />
+      {/* <MetricsRow /> */}
       <LinkBuilderSection />
-      <TimelineSection />
+      {/* <TimelineSection /> */}
     </main>
   )
 }

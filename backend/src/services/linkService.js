@@ -1,28 +1,75 @@
-import { BASE_URL } from '../config.js'
-import { addLink, incrementClicks, checkCodeExists, queryLinkByCode, queryLinkByOriginalUrl, getDashboardStats, getRecentLinks, getAllLinksData } from '../data/linkStore.js'
+import bcrypt from 'bcryptjs'
+import { URL } from 'node:url'
+import {
+  addUrl,
+  incrementClicks,
+  checkCodeExists,
+  queryUrlByShortCode,
+  queryUrlByOriginalUrl,
+  getDashboardStats,
+  getRecentLinks,
+  getAllLinksData,
+  recordVisit,
+  getLinkAnalytics,
+} from '../data/linkStore.js'
 import { getCachedOriginalUrl, setCachedOriginalUrl } from '../cache/redisCache.js'
 import { buildShortUrl, createSlug, normalizeUrl, sanitizeSlug } from '../utils/slug.js'
+import { BASE_URL } from '../config.js'
 
-export function resolveCode(preferredCode, title) {
-  const preferred = typeof preferredCode === 'string' ? preferredCode.trim() : ''
+const RESERVED_ALIAS_KEYS = new Set([
+  'admin',
+  'api',
+  'dashboard',
+  'login',
+  'signup',
+  'access',
+  'create',
+  'help',
+  'settings',
+])
 
-  if (preferred) {
-    return sanitizeSlug(preferred)
+function aliasIsAllowed(alias) {
+  if (!alias) return false
+  const normalized = alias.trim().toLowerCase()
+  return /^[a-z0-9_-]{4,32}$/.test(normalized) && !RESERVED_ALIAS_KEYS.has(normalized)
+}
+
+function getLinkTitle(url) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, '')
+  } catch {
+    return 'Link'
+  }
+}
+
+function parseExpiration(expirationType, expirationValue) {
+  if (!expirationType || expirationType === 'none') {
+    return { expiration_type: null, expires_at: null }
   }
 
-  const fallbackTitle = typeof title === 'string' ? title.trim() : ''
-
-  if (!fallbackTitle) {
-    return createSlug()
+  if (expirationType === 'date' && expirationValue) {
+    const expiresAt = new Date(expirationValue)
+    if (Number.isNaN(expiresAt.getTime())) {
+      throw new Error('Invalid expiration date')
+    }
+    return { expiration_type: 'date', expires_at: expiresAt }
   }
 
-  const slugFromTitle = fallbackTitle
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 32)
+  const durationMap = {
+    '1h': 1,
+    '6h': 6,
+    '12h': 12,
+    '1d': 24,
+    '7d': 168,
+    '30d': 720,
+  }
 
-  return slugFromTitle || createSlug()
+  if (durationMap[expirationType]) {
+    const expiresAt = new Date(Date.now() + durationMap[expirationType] * 60 * 60 * 1000)
+    return { expiration_type: expirationType, expires_at: expiresAt }
+  }
+
+  throw new Error('Unsupported expiration option')
 }
 
 export async function getAllLinks() {
@@ -39,104 +86,193 @@ export async function createShortLink(input) {
     throw new Error('Input must be an object with url')
   }
 
-  const { url } = input
+  const { url, customAlias, password, expirationType, expirationValue } = input
 
   if (!url) {
     throw new Error('URL is required')
   }
 
-  // Normalize the original URL
   const normalizedUrl = normalizeUrl(url)
 
-  // Reuse existing mapping for same URL instead of creating a new code.
-  const existingLink = await queryLinkByOriginalUrl(normalizedUrl)
+  if (customAlias) {
+    if (!aliasIsAllowed(customAlias)) {
+      throw new Error('Custom alias is invalid or reserved')
+    }
 
-  if (existingLink) {
-    await setCachedOriginalUrl(existingLink.code, existingLink.original_url)
+    const aliasExists = await checkCodeExists(customAlias.trim().toLowerCase())
+    if (aliasExists) {
+      throw new Error('Custom alias already exists')
+    }
+  }
 
+  const existingLink = await queryUrlByOriginalUrl(normalizedUrl)
+  if (existingLink && !customAlias && !password && !input.expirationType) {
+    await setCachedOriginalUrl(existingLink.short_code, existingLink.original_url)
     return {
       success: true,
-      code: existingLink.code,
-      original_url: existingLink.original_url,
-      short_url: existingLink.short_url,
-      short_link: existingLink.short_url,
-      id: existingLink.id,
-      clicks: existingLink.clicks,
-      created_at: existingLink.created_at,
+      ...existingLink,
+      short_url: buildShortUrl(BASE_URL, existingLink.short_code),
+      short_link: buildShortUrl(BASE_URL, existingLink.short_code),
       reused: true,
     }
   }
 
-  // Always generate a random slug, retry if collision
-  let code
-  let attempts = 0
-  const maxAttempts = 5
-  while (attempts < maxAttempts) {
-    code = createSlug()
-    const exists = await checkCodeExists(code)
-    if (!exists) {
-      break
+  let shortCode = customAlias ? sanitizeSlug(customAlias) : null
+
+  if (!shortCode) {
+    let attempts = 0
+    const maxAttempts = 5
+    while (attempts < maxAttempts) {
+      const candidate = createSlug()
+      const exists = await checkCodeExists(candidate)
+      if (!exists) {
+        shortCode = candidate
+        break
+      }
+      attempts += 1
     }
-    attempts += 1
-  }
-  if (attempts === maxAttempts) {
-    throw new Error('Failed to generate unique slug after multiple attempts')
+
+    if (!shortCode) {
+      throw new Error('Failed to generate unique slug after multiple attempts')
+    }
   }
 
-  // Build the short URL
-  const shortUrl = buildShortUrl(BASE_URL, code)
+  const passwordHash = password ? await bcrypt.hash(password, 10) : null
+  const isPasswordProtected = Boolean(passwordHash)
+  const title = getLinkTitle(normalizedUrl)
+  const { expiration_type, expires_at } = parseExpiration(expirationType, expirationValue)
 
-  // Save to database
-  const saved = await addLink({
-    code,
+  const saved = await addUrl({
     original_url: normalizedUrl,
-    short_url: shortUrl
+    short_code: shortCode,
+    custom_alias: customAlias ? sanitizeSlug(customAlias) : null,
+    title,
+    password_hash: passwordHash,
+    is_password_protected: isPasswordProtected,
+    expiration_type,
+    expires_at,
   })
 
-  const reused = saved.code !== code
-
-  await setCachedOriginalUrl(saved.code, normalizedUrl)
+  await setCachedOriginalUrl(saved.short_code, normalizedUrl)
 
   return {
     success: true,
-    code: saved.code,
-    original_url: saved.original_url,
-    short_url: saved.short_url,
-    short_link: saved.short_url,
-    id: saved.id,
-    clicks: saved.clicks,
-    created_at: saved.created_at,
-    reused,
+    ...saved,
+    code: saved.short_code,
+    short_url: buildShortUrl(BASE_URL, saved.short_code),
+    short_link: buildShortUrl(BASE_URL, saved.short_code),
+    reused: false,
   }
 }
 
-export async function resolveShortLink(code) {
+function assertLinkActive(link) {
+  if (!link.is_active) {
+    const error = new Error('Link is disabled')
+    error.code = 'INACTIVE'
+    throw error
+  }
+
+  if (link.expires_at && new Date(link.expires_at) < new Date()) {
+    const error = new Error('Link has expired')
+    error.code = 'EXPIRED'
+    throw error
+  }
+}
+
+export async function getLinkMetadata(code) {
+  if (!code || typeof code !== 'string') {
+    throw new Error('Code is required')
+  }
+
+  const link = await queryUrlByShortCode(code.trim())
+  return {
+    id: link.id,
+    original_url: link.original_url,
+    short_code: link.short_code,
+    custom_alias: link.custom_alias,
+    short_url: buildShortUrl(BASE_URL, link.short_code),
+    title: link.title,
+    is_password_protected: link.is_password_protected,
+    expires_at: link.expires_at,
+    expiration_type: link.expiration_type,
+    click_count: link.click_count,
+    is_active: link.is_active,
+    created_at: link.created_at,
+    updated_at: link.updated_at,
+  }
+}
+
+export async function verifyLinkPassword(code, password) {
+  if (!code || typeof code !== 'string') {
+    throw new Error('Code is required')
+  }
+
+  const link = await queryUrlByShortCode(code.trim())
+  assertLinkActive(link)
+
+  if (!link.is_password_protected) {
+    return link.original_url
+  }
+
+  if (!password) {
+    throw new Error('Password is required')
+  }
+
+  const isValid = await bcrypt.compare(password, link.password_hash)
+  if (!isValid) {
+    const error = new Error('Incorrect password')
+    error.code = 'INVALID_PASSWORD'
+    throw error
+  }
+
+  await incrementClicks(link.short_code)
+  await recordVisit(link.id, {
+    ip_address: null,
+    country: null,
+    device: 'Protected Access',
+    browser: 'Password verified',
+    os: 'Protected Access',
+    referrer: null,
+  })
+
+  return link.original_url
+}
+
+export async function resolveShortLink(code, visitMetadata = {}) {
   if (!code || typeof code !== 'string') {
     throw new Error('Code is required')
   }
 
   const trimmedCode = code.trim()
-
   if (!trimmedCode) {
     throw new Error('Code is required')
   }
 
   const cachedOriginalUrl = await getCachedOriginalUrl(trimmedCode)
-
   if (cachedOriginalUrl) {
     await incrementClicks(trimmedCode)
     return cachedOriginalUrl
   }
 
-  // Query the database for the link
-  const link = await queryLinkByCode(trimmedCode)
+  const link = await queryUrlByShortCode(trimmedCode)
+  assertLinkActive(link)
 
+  if (link.is_password_protected) {
+    const error = new Error('Link is password protected')
+    error.code = 'PASSWORD_REQUIRED'
+    throw error
+  }
+
+  if (link.expires_at && new Date(link.expires_at) < new Date()) {
+    const error = new Error('Link has expired')
+    error.code = 'EXPIRED'
+    throw error
+  }
+
+  await incrementClicks(trimmedCode)
+  await recordVisit(link.id, visitMetadata)
   await setCachedOriginalUrl(trimmedCode, link.original_url)
 
-  // Increment click counter
-  await incrementClicks(trimmedCode)
-
-  // Return the original URL for redirect
   return link.original_url
 }
 
@@ -150,8 +286,13 @@ export async function getDashboardSummary() {
       total_links: stats.total_links,
       total_clicks: stats.total_clicks,
       max_clicks: stats.max_clicks,
-      avg_clicks: Number(stats.avg_clicks).toFixed(2)
+      avg_clicks: Number(stats.avg_clicks).toFixed(2),
+      protected_links: Number(stats.protected_links || 0),
     },
-    recent_links: recentLinks
+    recent_links: recentLinks,
   }
+}
+
+export async function getLinkAnalyticsSummary(code) {
+  return getLinkAnalytics(code)
 }

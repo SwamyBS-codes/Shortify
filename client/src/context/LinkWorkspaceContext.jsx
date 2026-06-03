@@ -12,6 +12,11 @@ export function LinkWorkspaceProvider({ children }) {
   const [links, setLinks] = useState(initialLinks)
   const [statusMessage, setStatusMessage] = useState('Ready to generate a branded short link.')
   const [generatedLink, setGeneratedLink] = useState(initialLinks[0])
+  const [customAlias, setCustomAlias] = useState('')
+  const [protectWithPassword, setProtectWithPassword] = useState(false)
+  const [password, setPassword] = useState('')
+  const [expirationType, setExpirationType] = useState('none')
+  const [expirationValue, setExpirationValue] = useState('')
   const [dashboardStats, setDashboardStats] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
@@ -42,7 +47,7 @@ export function LinkWorkspaceProvider({ children }) {
         }
 
         setDashboardStats(dashboard?.summary || null)
-        setStatusMessage('Loaded links from backend.')
+        // setStatusMessage('Loaded links from backend.')
         addToast('Workspace loaded successfully.', 'success')
       } catch (error) {
         if (isMounted) {
@@ -122,6 +127,10 @@ export function LinkWorkspaceProvider({ children }) {
     try {
       const newLink = await createLink({
         url: longUrl.trim(),
+        customAlias: customAlias.trim() || undefined,
+        password: protectWithPassword ? password : undefined,
+        expirationType,
+        expirationValue,
       })
 
       setLinks((current) => {
@@ -141,6 +150,11 @@ export function LinkWorkspaceProvider({ children }) {
         return deduped.slice(0, 10)
       })
       setGeneratedLink(newLink)
+      setCustomAlias('')
+      setProtectWithPassword(false)
+      setPassword('')
+      setExpirationType('none')
+      setExpirationValue('')
       try {
         const dashboard = await fetchDashboardSummary()
         setDashboardStats(dashboard?.summary || null)
@@ -182,6 +196,11 @@ export function LinkWorkspaceProvider({ children }) {
       actionError,
       addToast,
       setLongUrl,
+      setCustomAlias,
+      setProtectWithPassword,
+      setPassword,
+      setExpirationType,
+      setExpirationValue,
       setSearchQuery,
       setStatusFilter,
       copyShortLink,
