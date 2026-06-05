@@ -21,12 +21,18 @@ import ShortifyLogo from './components/ShortifyLogo'
 function LoadingScreen() {
   return (
     <main className="loading-screen" aria-label="Loading Shortify">
-      <div className="loading-card">
+      <div className="loading-content">
         <ShortifyLogo />
         <h1>Loading your workspace</h1>
         <p>Fetching links and analytics…</p>
-        <div className="loading-spinner" />
+        <div className="loading-spinner-wrap">
+          <div className="loading-spinner" />
+        </div>
+        <div className="loading-dots">
+          <span></span><span></span><span></span>
+        </div>
       </div>
+      <div className="loading-bg-grad"></div>
     </main>
   )
 }

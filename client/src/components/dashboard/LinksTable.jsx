@@ -3,6 +3,7 @@ import { useLinkWorkspace } from '../../context/LinkWorkspaceContext'
 import { useAuth } from '../../context/AuthContext'
 import StatusBadge from '../ui/StatusBadge'
 import EmptyState from '../ui/EmptyState'
+import SkeletonLoader from '../ui/SkeletonLoader'
 import BulkActionsBar from './BulkActionsBar'
 import { Link } from 'react-router-dom'
 import { formatDateOnlyDisplay } from '../../utils/linkUtils'
@@ -200,7 +201,9 @@ function LinksTable() {
       </div>
 
       {isLoading ? (
-        <div className="table-loading">Loading links...</div>
+        <div className="table-loading">
+          <SkeletonLoader rows={5} />
+        </div>
       ) : links.length === 0 ? (
         <EmptyState
           title="No links yet"
