@@ -65,6 +65,22 @@ function normalizeFolder(folder) {
   return trimmed || null
 }
 
+function assertNotOwnDomain(url, baseUrl = BASE_URL) {
+  let parsedUrl
+  let parsedBaseUrl
+
+  try {
+    parsedUrl = new URL(url)
+    parsedBaseUrl = new URL(baseUrl)
+  } catch {
+    return
+  }
+
+  if (parsedUrl.hostname.toLowerCase() === parsedBaseUrl.hostname.toLowerCase()) {
+    throw new Error('Unsupported URL: cannot shorten this service own domain')
+  }
+}
+
 function parseExpiration(input) {
   const expirationType = input?.expirationType
   const expirationStartDate = input?.expirationStartDate
@@ -162,6 +178,7 @@ export async function createShortLink(input, userId = null, baseUrl = BASE_URL) 
   }
 
   const normalizedUrl = normalizeUrl(url)
+  assertNotOwnDomain(normalizedUrl, baseUrl)
 
   if (customAlias) {
     const availability = await checkAliasAvailability(customAlias)
@@ -346,6 +363,7 @@ export async function updateShortLink(code, input, userId = null, baseUrl = BASE
 
   if (input.url) {
     updates.original_url = normalizeUrl(input.url)
+    assertNotOwnDomain(updates.original_url, baseUrl)
   }
 
   if (input.customAlias !== undefined) {
