@@ -21,33 +21,49 @@ import ShortifyLogo from './components/ShortifyLogo'
 function LoadingScreen() {
   return (
     <main className="loading-screen" aria-label="Loading Shortify">
-      <div className="loading-content">
-        <ShortifyLogo />
-        <h1>Loading your workspace</h1>
-        <p>Fetching links and analytics…</p>
-        <div className="loading-spinner-wrap">
-          <div className="loading-spinner" />
-        </div>
-        <div className="loading-dots">
-          <span></span><span></span><span></span>
-        </div>
+      <div className="loading-bg-emojis">
+        <span className="emoji emoji-1">🔗</span>
+        <span className="emoji emoji-2">🔗</span>
+        <span className="emoji emoji-3">🔗</span>
+        <span className="emoji emoji-4">🔗</span>
+        <span className="emoji emoji-5">🔗</span>
+        <span className="emoji emoji-6">🔗</span>
       </div>
       <div className="loading-bg-grad"></div>
+      <div className="loading-container">
+        <div className="loading-content">
+          <div className="logo-animation">
+            <ShortifyLogo />
+          </div>
+          <h1 className="loading-title">Loading your workspace</h1>
+          <p className="loading-subtitle">Fetching links and analytics…</p>
+          <div className="loading-spinner-wrap">
+            <div className="loading-spinner" />
+          </div>
+          <div className="loading-dots">
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </div>
     </main>
   )
 }
 
+import { useRef } from 'react'
+
 function DashboardGate() {
   const { isLoading } = useLinkWorkspace()
   const { isAuthLoading } = useAuth()
-  const [minimumLoadingComplete, setMinimumLoadingComplete] = useState(false)
 
-  useEffect(() => {
-    const timer = setTimeout(() => setMinimumLoadingComplete(true), 600)
-    return () => clearTimeout(timer)
-  }, [])
+  const hasInitialized = useRef(false)
 
-  if (isLoading || isAuthLoading || !minimumLoadingComplete) {
+  // Mark the app as initialized once the initial load finishes
+  if (!isLoading && !isAuthLoading) {
+    hasInitialized.current = true
+  }
+
+  // Show full-screen loader only during the first app load
+  if (!hasInitialized.current && (isLoading || isAuthLoading)) {
     return <LoadingScreen />
   }
 
