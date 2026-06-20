@@ -54,16 +54,14 @@ import { useRef } from 'react'
 function DashboardGate() {
   const { isLoading } = useLinkWorkspace()
   const { isAuthLoading } = useAuth()
+  const [minimumLoadingComplete, setMinimumLoadingComplete] = useState(true)
 
-  const hasInitialized = useRef(false)
+  // useEffect(() => {
+  //   const timer = setTimeout(() => setMinimumLoadingComplete(true), )
+  //   return () => clearTimeout(timer)
+  // }, [])
 
-  // Mark the app as initialized once the initial load finishes
-  if (!isLoading && !isAuthLoading) {
-    hasInitialized.current = true
-  }
-
-  // Show full-screen loader only during the first app load
-  if (!hasInitialized.current && (isLoading || isAuthLoading)) {
+  if (isLoading || isAuthLoading) {
     return <LoadingScreen />
   }
 
