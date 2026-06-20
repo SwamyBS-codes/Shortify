@@ -24,6 +24,10 @@ const sslConfig = process.env.DB_SSL === 'true'
   ? { rejectUnauthorized: false }
   : false
 
+const postgresOptions = {
+  onnotice: () => {},
+}
+
 function parseDatabaseUrl(urlString) {
   const url = new URL(urlString)
   const dbName = url.pathname?.slice(1)
@@ -35,6 +39,7 @@ function parseDatabaseUrl(urlString) {
     port: Number(url.port || 5432),
     database: dbName,
     ssl: sslConfig,
+    ...postgresOptions,
   }
 }
 
@@ -45,6 +50,7 @@ const postgresPool = postgres(useConnectionString ? parseDatabaseUrl(connectionS
   port,
   database,
   ssl: sslConfig,
+  ...postgresOptions,
 })
 
 export default postgresPool

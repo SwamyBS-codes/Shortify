@@ -1,5 +1,6 @@
 import postgresPool from './db.js'
 import { pathToFileURL } from 'node:url'
+import { logger, logError } from './utils/logger.js'
 
 export async function setupDatabase() {
   await postgresPool`
@@ -80,7 +81,7 @@ export async function setupDatabase() {
     create index if not exists urls_folder_idx on urls (folder) where folder is not null
   `
 
-  console.log('Database schema is ready')
+  logger.info('database_schema_ready')
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
@@ -89,7 +90,7 @@ if (import.meta.url === pathToFileURL(process.argv[1]).href) {
       await postgresPool.end()
     })
     .catch(async (error) => {
-      console.error('Failed to create schema:', error)
+      logError('database_schema_setup_failed', error)
       await postgresPool.end()
       process.exit(1)
     })

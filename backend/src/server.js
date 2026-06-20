@@ -21,11 +21,14 @@ import {
 import { getLinkByCode, listLinks } from './data/linkStore.js'
 import { extractVisitMetadata } from './utils/visitMetadata.js'
 import { optionalAuth } from './middleware/optionalAuth.js'
+import { requestLogger } from './middleware/requestLogger.js'
 import { registerUser, loginUser, getUserProfile } from './services/authService.js'
+import { logger, logError } from './utils/logger.js'
 
 const app = express()
 app.set('trust proxy', 1)
 app.use(helmet())
+app.use(requestLogger)
 app.use(express.json({ limit: '16kb' }))
 const rawClientUrls = process.env.CLIENT_URL || ''
 const allowedOrigins = rawClientUrls.split(',').map((s) => s.trim()).filter(Boolean)
@@ -40,7 +43,8 @@ const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true)
     if (allowedOrigins.includes(origin)) return callback(null, true)
-    callback(new Error('Not allowed by CORS'))
+    logger.warn('cors_origin_blocked', { origin })
+    callback(null, false)
   },
   credentials: true,
 }
@@ -83,6 +87,15 @@ function handleServiceError(res, error, fallback = 'Request failed') {
   return res.status(500).json({ error: message })
 }
 
+function logRouteError(req, message, error) {
+  logError(message, error, {
+    requestId: req.requestId,
+    method: req.method,
+    path: req.path,
+    userId: req.user?.id ?? null,
+  })
+}
+
 app.get('/', (req, res) => {
   res.send('URL Shortener backend is running')
 })
@@ -92,7 +105,7 @@ app.post('/api/auth/register', async (req, res) => {
     const result = await registerUser(req.body)
     res.json({ success: true, ...result })
   } catch (error) {
-    console.error('Registration failed:', error)
+    logRouteError(req, 'registration_failed', error)
     handleServiceError(res, error, 'Registration failed')
   }
 })
@@ -102,7 +115,7 @@ app.post('/api/auth/login', async (req, res) => {
     const result = await loginUser(req.body)
     res.json({ success: true, ...result })
   } catch (error) {
-    console.error('Login failed:', error)
+    logRouteError(req, 'login_failed', error)
     handleServiceError(res, error, 'Login failed')
   }
 })
@@ -115,7 +128,7 @@ app.get('/api/auth/me', async (req, res) => {
     const user = await getUserProfile(req.user.id)
     res.json({ success: true, user })
   } catch (error) {
-    console.error('Profile fetch failed:', error)
+    logRouteError(req, 'profile_fetch_failed', error)
     handleServiceError(res, error, 'Failed to fetch profile')
   }
 })
@@ -124,7 +137,7 @@ app.get('/api/listAllLinks', async (req, res) => {
   try {
     await listLinks(req, res)
   } catch (error) {
-    console.error('Error fetching links:', error)
+    logRouteError(req, 'legacy_links_fetch_failed', error)
     res.status(500).json({ error: 'Failed to fetch links' })
   }
 })
@@ -135,7 +148,7 @@ app.get('/api/links', async (req, res) => {
     const result = await getAllLinks(req.user?.id ?? null, baseUrl)
     res.json(result)
   } catch (error) {
-    console.error('Error listing links:', error)
+    logRouteError(req, 'links_list_failed', error)
     res.status(500).json({ error: 'Failed to list links' })
   }
 })
@@ -144,7 +157,7 @@ app.get('/api/getLinkByCode/:code', async (req, res) => {
   try {
     await getLinkByCode(req, res)
   } catch (error) {
-    console.error('Error fetching link by code:', error)
+    logRouteError(req, 'legacy_link_fetch_failed', error)
     res.status(500).json({ error: 'Failed to fetch link by code' })
   }
 })
@@ -154,7 +167,7 @@ app.get('/api/aliases/:alias/check', async (req, res) => {
     const result = await checkAliasAvailability(req.params.alias)
     res.json(result)
   } catch (error) {
-    console.error('Error checking alias:', error)
+    logRouteError(req, 'alias_check_failed', error)
     res.status(500).json({ error: 'Failed to check alias availability' })
   }
 })
@@ -164,7 +177,7 @@ app.post('/api/links/bulk', async (req, res) => {
     const result = await bulkUpdateLinks(req.body, req.user?.id ?? null)
     res.json(result)
   } catch (error) {
-    console.error('Bulk link action failed:', error)
+    logRouteError(req, 'bulk_link_action_failed', error)
     handleServiceError(res, error, 'Bulk action failed')
   }
 })
@@ -175,7 +188,7 @@ app.get('/api/links/:code/settings', async (req, res) => {
     const settings = await getLinkSettings(req.params.code, req.user?.id ?? null, baseUrl)
     res.json({ success: true, link: settings })
   } catch (error) {
-    console.error('Error fetching link settings:', error)
+    logRouteError(req, 'link_settings_fetch_failed', error)
     handleServiceError(res, error, 'Failed to fetch link settings')
   }
 })
@@ -186,7 +199,7 @@ app.get('/api/links/:code', async (req, res) => {
     const metadata = await getLinkMetadata(req.params.code, { hideDestination: true }, baseUrl)
     res.json({ success: true, link: metadata })
   } catch (error) {
-    console.error('Error fetching link metadata:', error)
+    logRouteError(req, 'link_metadata_fetch_failed', error)
     handleServiceError(res, error, 'Failed to fetch link metadata')
   }
 })
@@ -197,7 +210,7 @@ app.post('/api/createlink', async (req, res) => {
     const result = await createShortLink(req.body, req.user?.id ?? null, baseUrl)
     res.json(result)
   } catch (error) {
-    console.error('Error creating short link:', error)
+    logRouteError(req, 'link_create_failed', error)
     handleServiceError(res, error, 'Failed to create short link')
   }
 })
@@ -208,7 +221,7 @@ app.put('/api/links/:code', async (req, res) => {
     const result = await updateShortLink(req.params.code, req.body, req.user?.id ?? null, baseUrl)
     res.json(result)
   } catch (error) {
-    console.error('Error updating link:', error)
+    logRouteError(req, 'link_update_failed', error)
     handleServiceError(res, error, 'Failed to update link')
   }
 })
@@ -218,7 +231,7 @@ app.delete('/api/links/:code', async (req, res) => {
     const result = await deleteShortLink(req.params.code, req.user?.id ?? null)
     res.json(result)
   } catch (error) {
-    console.error('Error deleting link:', error)
+    logRouteError(req, 'link_delete_failed', error)
     handleServiceError(res, error, 'Failed to delete link')
   }
 })
@@ -229,7 +242,7 @@ app.post('/api/links/:code/verify', async (req, res) => {
     const url = await verifyLinkPassword(req.params.code, req.body.password, visitMetadata)
     res.json({ success: true, redirect_url: url })
   } catch (error) {
-    console.error('Password verification failed:', error)
+    logRouteError(req, 'password_verification_failed', error)
     handleServiceError(res, error, 'Password verification failed')
   }
 })
@@ -240,7 +253,7 @@ app.get('/api/links/:code/analytics', async (req, res) => {
     const analytics = await getLinkAnalyticsSummary(req.params.code, baseUrl)
     res.json({ success: true, analytics })
   } catch (error) {
-    console.error('Error fetching analytics:', error)
+    logRouteError(req, 'analytics_fetch_failed', error)
     handleServiceError(res, error, 'Failed to fetch analytics')
   }
 })
@@ -251,7 +264,7 @@ app.get('/api/dashboard', async (req, res) => {
     const summary = await getDashboardSummary(req.user?.id ?? null, baseUrl)
     res.json(summary)
   } catch (error) {
-    console.error('Error fetching dashboard summary:', error)
+    logRouteError(req, 'dashboard_summary_fetch_failed', error)
     res.status(500).json({ error: 'Failed to fetch dashboard summary' })
   }
 })
@@ -282,19 +295,47 @@ async function handleRedirect(req, res, next) {
 }
 
 app.get('/api/resolveLink/:code', handleRedirect)
+app.get('/favicon.ico', (req, res) => {
+  res.status(204).end()
+})
 app.get('/:code', handleRedirect)
+
+app.use((err, req, res, next) => {
+  if (res.headersSent) {
+    return next(err)
+  }
+
+  logRouteError(req, 'unhandled_request_error', err)
+  res.status(500).json({
+    error: 'Internal server error',
+    requestId: req.requestId,
+  })
+})
 
 async function startServer() {
   await setupDatabase()
   await initRedisCache()
 
   app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`)
-    console.log(`BASE_URL=${BASE_URL} CLIENT_URL=${CLIENT_URL}`)
+    logger.info('server_started', {
+      port: PORT,
+      baseUrl: BASE_URL,
+      clientUrl: CLIENT_URL,
+    })
   })
 }
 
 startServer().catch((error) => {
-  console.error('Failed to start server:', error)
+  logError('server_start_failed', error)
+  process.exit(1)
+})
+
+process.on('unhandledRejection', (reason) => {
+  const error = reason instanceof Error ? reason : new Error(String(reason))
+  logError('unhandled_rejection', error)
+})
+
+process.on('uncaughtException', (error) => {
+  logError('uncaught_exception', error)
   process.exit(1)
 })
