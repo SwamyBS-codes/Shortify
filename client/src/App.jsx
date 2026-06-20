@@ -54,14 +54,14 @@ import { useRef } from 'react'
 function DashboardGate() {
   const { isLoading } = useLinkWorkspace()
   const { isAuthLoading } = useAuth()
-  const [minimumLoadingComplete, setMinimumLoadingComplete] = useState(true)
+  const [minimumLoadingComplete, setMinimumLoadingComplete] = useState(false)
 
-  // useEffect(() => {
-  //   const timer = setTimeout(() => setMinimumLoadingComplete(true), )
-  //   return () => clearTimeout(timer)
-  // }, [])
+  useEffect(() => {
+    const timer = setTimeout(() => setMinimumLoadingComplete(true), 1000)
+    return () => clearTimeout(timer)
+  }, [])
 
-  if (isLoading || isAuthLoading) {
+  if (isLoading || isAuthLoading || !minimumLoadingComplete) {
     return <LoadingScreen />
   }
 
