@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
 import { logger } from '../utils/logger.js'
 
+const shouldLogPreflight = process.env.LOG_PREFLIGHT_REQUESTS === 'true'
+
 function getRequestId(req) {
   const requestId = req.get('x-request-id')
   return requestId || randomUUID()
@@ -15,6 +17,9 @@ export function requestLogger(req, res, next) {
     const durationMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000
     const statusCode = res.statusCode
     const level = statusCode >= 500 ? 'error' : statusCode >= 400 ? 'warn' : 'info'
+    if (!shouldLogPreflight && req.method === 'OPTIONS' && statusCode < 400) {
+      return
+    }
 
     logger[level]('http_request_completed', {
       requestId: req.requestId,
