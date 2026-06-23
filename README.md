@@ -2,6 +2,8 @@
 
 A production-ready, full-stack URL shortening service featuring detailed click analytics, custom short code aliases, onboarding hints, secure password protection, link expiration windows, and active/disabled toggles.
 
+**Live Demo**: [https://shortify-urlshortner.vercel.app/](https://shortify-urlshortner.vercel.app/)
+
 This repository hosts both the backend and frontend client in a monorepo setup: a Node.js/Express backend monolith communicating with PostgreSQL and Redis, and a React (Vite) frontend styled with a premium glassmorphic theme.
 
 New here? This README gets you from a fresh clone to a running, audited, and optimized application.
