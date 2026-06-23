@@ -1,0 +1,75 @@
+
+> client@0.0.0 lint
+> eslint .
+
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/App.jsx
+  52:10  error  'useRef' is defined but never used. Allowed unused vars must match /^[A-Z_]/u  no-unused-vars
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/components/dashboard/LinkEditModal.jsx
+  19:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  17 |           : editModalLink.expirationType || 'none'
+  18 |       const isRange = type === 'custom_range'
+> 19 |       setForm({
+     |       ^^^^^^^ Avoid calling setState() directly within an effect
+  20 |         url: editModalLink.longUrl,
+  21 |         customAlias: editModalLink.customAlias || editModalLink.code,
+  22 |         protectWithPassword: editModalLink.passwordProtected,  react-hooks/set-state-in-effect
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/components/ui/OnboardingHint.jsx
+  8:7  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+   6 |   useEffect(() => {
+   7 |     if (!storageKey) {
+>  8 |       setVisible(true)
+     |       ^^^^^^^^^^ Avoid calling setState() directly within an effect
+   9 |       return
+  10 |     }
+  11 |     const dismissed = localStorage.getItem(storageKey)  react-hooks/set-state-in-effect
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/context/AuthContext.jsx
+  118:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/context/LinkWorkspaceContext.jsx
+  121:6   warning  React Hook useEffect has a missing dependency: 'user'. Either include it or remove the dependency array                                                                                         react-hooks/exhaustive-deps
+  415:5   warning  React Hook useMemo has missing dependencies: 'copyShortLink', 'createShortLink', 'deleteLinkByCode', 'runBulkAction', and 'saveEditedLink'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  455:17  error    Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components                                                                  react-refresh/only-export-components
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/context/ThemeContext.jsx
+  32:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/context/ToastContext.jsx
+  48:17  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+/home/swamybs/My_Projects/URL_Shortner/client/src/pages/LinkDetailsPage.jsx
+  20:5  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+  18 |   useEffect(() => {
+  19 |     if (!code) return
+> 20 |     setLoading(true)
+     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  21 |     fetchLinkSettings(code)
+  22 |       .then((data) => {
+  23 |         setLink(data)  react-hooks/set-state-in-effect
+
+✖ 10 problems (8 errors, 2 warnings)
+

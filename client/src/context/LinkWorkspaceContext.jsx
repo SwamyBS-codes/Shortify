@@ -118,7 +118,7 @@ export function LinkWorkspaceProvider({ children }) {
     return () => {
       isMounted = false
     }
-  }, [user?.id, isAuthLoading, addToast, refreshDashboard, refreshLinks])
+  }, [user, isAuthLoading, addToast, refreshDashboard, refreshLinks])
 
   useEffect(() => {
     if (!customAlias.trim() || customAlias.trim().length < 4) {
@@ -164,33 +164,35 @@ export function LinkWorkspaceProvider({ children }) {
     return sortLinks(filtered, sortBy)
   }, [links, normalizedQuery, sortBy, statusFilter, folderFilter, tagFilter])
 
-  const quickStats = dashboardStats
-    ? [
-        { label: 'Total links', value: String(dashboardStats.total_links) },
-        { label: 'Total clicks', value: Number(dashboardStats.total_clicks).toLocaleString() },
-        { label: 'Protected links', value: String(dashboardStats.protected_links) },
-        { label: 'Top link clicks', value: Number(dashboardStats.max_clicks).toLocaleString() },
-      ]
-    : [
-        { label: 'Total links', value: links.length.toString() },
-        { label: 'Total clicks', value: totalClicks.toLocaleString() },
-        { label: 'Protected links', value: links.filter((l) => l.passwordProtected).length.toString() },
-        {
-          label: 'Top link clicks',
-          value: Math.max(0, ...links.map((link) => link.clicks)).toLocaleString(),
-        },
-      ]
+  const quickStats = useMemo(() => {
+    return dashboardStats
+      ? [
+          { label: 'Total links', value: String(dashboardStats.total_links) },
+          { label: 'Total clicks', value: Number(dashboardStats.total_clicks).toLocaleString() },
+          { label: 'Protected links', value: String(dashboardStats.protected_links) },
+          { label: 'Top link clicks', value: Number(dashboardStats.max_clicks).toLocaleString() },
+        ]
+      : [
+          { label: 'Total links', value: links.length.toString() },
+          { label: 'Total clicks', value: totalClicks.toLocaleString() },
+          { label: 'Protected links', value: links.filter((l) => l.passwordProtected).length.toString() },
+          {
+            label: 'Top link clicks',
+            value: Math.max(0, ...links.map((link) => link.clicks)).toLocaleString(),
+          },
+        ]
+  }, [dashboardStats, links, totalClicks])
 
-  async function copyShortLink(value) {
+  const copyShortLink = useCallback(async (value) => {
     try {
       await navigator.clipboard.writeText(value)
       addToast('Short link copied to clipboard.', 'success')
     } catch {
       addToast('Copy failed. Please copy manually.', 'error')
     }
-  }
+  }, [addToast])
 
-  async function createShortLink() {
+  const createShortLink = useCallback(async () => {
     if (!longUrl.trim()) {
       addToast('Add a destination URL before generating a short link.', 'error')
       return
@@ -254,9 +256,22 @@ export function LinkWorkspaceProvider({ children }) {
     } finally {
       setIsCreating(false)
     }
-  }
+  }, [
+    longUrl,
+    aliasStatus,
+    expirationType,
+    expirationStartDate,
+    expirationEndDate,
+    customAlias,
+    protectWithPassword,
+    password,
+    linkFolder,
+    linkTagsInput,
+    refreshDashboard,
+    addToast
+  ])
 
-  async function deleteLinkByCode(code) {
+  const deleteLinkByCode = useCallback(async (code) => {
     try {
       await deleteLink(code)
       setLinks((current) => current.filter((link) => link.code !== code))
@@ -265,17 +280,17 @@ export function LinkWorkspaceProvider({ children }) {
     } catch (error) {
       addToast(error.message || 'Failed to delete link.', 'error')
     }
-  }
+  }, [refreshDashboard, addToast])
 
-  function openEditModal(link) {
+  const openEditModal = useCallback((link) => {
     setEditModalLink(link)
-  }
+  }, [])
 
-  function closeEditModal() {
+  const closeEditModal = useCallback(() => {
     setEditModalLink(null)
-  }
+  }, [])
 
-  async function saveEditedLink(code, form) {
+  const saveEditedLink = useCallback(async (code, form) => {
     if (form.expirationType === 'custom_range') {
       if (!form.expirationStartDate || !form.expirationEndDate) {
         addToast('Select both start and end dates for the custom range.', 'error')
@@ -320,17 +335,17 @@ export function LinkWorkspaceProvider({ children }) {
     } finally {
       setIsSaving(false)
     }
-  }
+  }, [generatedLink, closeEditModal, addToast])
 
-  function clearFilters() {
+  const clearFilters = useCallback(() => {
     setSearchQuery('')
     setStatusFilter('all')
     setFolderFilter('all')
     setTagFilter('all')
     setSortBy('newest')
-  }
+  }, [])
 
-  async function runBulkAction(action, codes, options = {}) {
+  const runBulkAction = useCallback(async (action, codes, options = {}) => {
     if (!codes.length) return
     setIsBulkBusy(true)
     try {
@@ -351,7 +366,7 @@ export function LinkWorkspaceProvider({ children }) {
     } finally {
       setIsBulkBusy(false)
     }
-  }
+  }, [refreshLinks, refreshDashboard, addToast])
 
   const value = useMemo(
     () => ({
@@ -444,8 +459,16 @@ export function LinkWorkspaceProvider({ children }) {
       loadError,
       actionError,
       editModalLink,
-      refreshLinks,
       isBulkBusy,
+      copyShortLink,
+      createShortLink,
+      deleteLinkByCode,
+      openEditModal,
+      closeEditModal,
+      saveEditedLink,
+      clearFilters,
+      refreshLinks,
+      runBulkAction,
     ],
   )
 

@@ -17,7 +17,6 @@ function LinkDetailsPage() {
 
   useEffect(() => {
     if (!code) return
-    setLoading(true)
     fetchLinkSettings(code)
       .then((data) => {
         setLink(data)

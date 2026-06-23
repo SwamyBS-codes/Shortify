@@ -2,8 +2,11 @@ import AppNavbar from '../components/layout/AppNavbar'
 import UrlShortener from '../components/UrlShortener'
 import LinksTable from '../components/dashboard/LinksTable'
 import LinkEditModal from '../components/dashboard/LinkEditModal'
+import { useLinkWorkspace } from '../context/LinkWorkspaceContext'
 
 function DashboardPage() {
+  const { editModalLink } = useLinkWorkspace()
+
   return (
     <div className="page">
       <AppNavbar />
@@ -12,7 +15,7 @@ function DashboardPage() {
         <div className="container section">
           <LinksTable />
         </div>
-        <LinkEditModal />
+        {editModalLink && <LinkEditModal />}
       </main>
       <footer className="site-footer">
         <div className="container footer-inner">

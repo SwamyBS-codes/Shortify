@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useLinkWorkspace } from '../../context/LinkWorkspaceContext'
 import { toDateInputValue, formatTagsForInput } from '../../utils/linkUtils'
 import ExpirationFields from '../ui/ExpirationFields'
@@ -6,32 +6,30 @@ import PasswordProtectField from '../ui/PasswordProtectField'
 
 function LinkEditModal() {
   const { editModalLink, closeEditModal, saveEditedLink, isSaving } = useLinkWorkspace()
-  const [form, setForm] = useState(null)
   const [showPassword, setShowPassword] = useState(false)
 
-  useEffect(() => {
-    if (editModalLink) {
-      const type =
-        editModalLink.expirationType === 'custom' || editModalLink.expirationType === 'date'
-          ? 'custom_range'
-          : editModalLink.expirationType || 'none'
-      const isRange = type === 'custom_range'
-      setForm({
-        url: editModalLink.longUrl,
-        customAlias: editModalLink.customAlias || editModalLink.code,
-        protectWithPassword: editModalLink.passwordProtected,
-        password: '',
-        expirationType: type,
-        expirationStartDate:
-          isRange && editModalLink.startsAtIso ? toDateInputValue(editModalLink.startsAtIso) : '',
-        expirationEndDate:
-          isRange && editModalLink.expiresAtIso ? toDateInputValue(editModalLink.expiresAtIso) : '',
-        folder: editModalLink.folder || '',
-        tagsInput: formatTagsForInput(editModalLink.tags),
-        isActive: editModalLink.isActive,
-      })
+  const [form, setForm] = useState(() => {
+    if (!editModalLink) return null
+    const type =
+      editModalLink.expirationType === 'custom' || editModalLink.expirationType === 'date'
+        ? 'custom_range'
+        : editModalLink.expirationType || 'none'
+    const isRange = type === 'custom_range'
+    return {
+      url: editModalLink.longUrl,
+      customAlias: editModalLink.customAlias || editModalLink.code,
+      protectWithPassword: editModalLink.passwordProtected,
+      password: '',
+      expirationType: type,
+      expirationStartDate:
+        isRange && editModalLink.startsAtIso ? toDateInputValue(editModalLink.startsAtIso) : '',
+      expirationEndDate:
+        isRange && editModalLink.expiresAtIso ? toDateInputValue(editModalLink.expiresAtIso) : '',
+      folder: editModalLink.folder || '',
+      tagsInput: formatTagsForInput(editModalLink.tags),
+      isActive: editModalLink.isActive,
     }
-  }, [editModalLink])
+  })
 
   if (!editModalLink || !form) return null
 

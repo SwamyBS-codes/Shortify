@@ -1,16 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 
 function OnboardingHint({ storageKey, title, children, onDismiss }) {
-  const [visible, setVisible] = useState(false)
-
-  useEffect(() => {
-    if (!storageKey) {
-      setVisible(true)
-      return
-    }
-    const dismissed = localStorage.getItem(storageKey)
-    setVisible(!dismissed)
-  }, [storageKey])
+  const [visible, setVisible] = useState(() => {
+    if (!storageKey) return true
+    return !localStorage.getItem(storageKey)
+  })
 
   function dismiss() {
     if (storageKey) {

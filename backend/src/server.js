@@ -1,7 +1,17 @@
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
-import { PORT, CLIENT_URL, BASE_URL } from './config.js'
+import {
+  PORT,
+  CLIENT_URL,
+  BASE_URL,
+  RATE_LIMIT_API_MAX,
+  RATE_LIMIT_AUTH_MAX,
+  RATE_LIMIT_CREATE_LINK_MAX,
+  RATE_LIMIT_PASSWORD_VERIFY_MAX,
+  RATE_LIMIT_REDIRECT_MAX,
+  RATE_LIMIT_WINDOW_MS,
+} from './config.js'
 import { initRedisCache } from './cache/redisCache.js'
 import { setupDatabase } from './setupDb.js'
 import {
@@ -22,14 +32,40 @@ import { getLinkByCode, listLinks } from './data/linkStore.js'
 import { extractVisitMetadata } from './utils/visitMetadata.js'
 import { optionalAuth } from './middleware/optionalAuth.js'
 import { requestLogger } from './middleware/requestLogger.js'
+import { createRateLimiter } from './middleware/rateLimiter.js'
 import { registerUser, loginUser, getUserProfile } from './services/authService.js'
 import { logger, logError } from './utils/logger.js'
 
 const app = express()
+const apiRateLimiter = createRateLimiter({
+  name: 'api',
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_API_MAX,
+})
+const authRateLimiter = createRateLimiter({
+  name: 'auth',
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_AUTH_MAX,
+})
+const createLinkRateLimiter = createRateLimiter({
+  name: 'create_link',
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_CREATE_LINK_MAX,
+})
+const passwordVerifyRateLimiter = createRateLimiter({
+  name: 'password_verify',
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_PASSWORD_VERIFY_MAX,
+})
+const redirectRateLimiter = createRateLimiter({
+  name: 'redirect',
+  windowMs: RATE_LIMIT_WINDOW_MS,
+  max: RATE_LIMIT_REDIRECT_MAX,
+})
+
 app.set('trust proxy', 1)
 app.use(helmet())
 app.use(requestLogger)
-app.use(express.json({ limit: '16kb' }))
 const rawClientUrls = process.env.CLIENT_URL || ''
 const allowedOrigins = rawClientUrls.split(',').map((s) => s.trim()).filter(Boolean)
 if (allowedOrigins.length === 0) {
@@ -57,6 +93,12 @@ app.use((req, res, next) => {
   }
   next()
 })
+app.use('/api', apiRateLimiter)
+app.post('/api/auth/register', authRateLimiter)
+app.post('/api/auth/login', authRateLimiter)
+app.post('/api/createlink', createLinkRateLimiter)
+app.post('/api/links/:code/verify', passwordVerifyRateLimiter)
+app.use(express.json({ limit: '16kb' }))
 app.use(optionalAuth)
 
 function handleServiceError(res, error, fallback = 'Request failed') {
@@ -294,11 +336,11 @@ async function handleRedirect(req, res, next) {
   }
 }
 
-app.get('/api/resolveLink/:code', handleRedirect)
+app.get('/api/resolveLink/:code', redirectRateLimiter, handleRedirect)
 app.get('/favicon.ico', (req, res) => {
   res.status(204).end()
 })
-app.get('/:code', handleRedirect)
+app.get('/:code', redirectRateLimiter, handleRedirect)
 
 app.use((err, req, res, next) => {
   if (res.headersSent) {

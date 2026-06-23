@@ -4,6 +4,22 @@ import { fetchLinkMetadata, verifyLinkPassword } from '../api/linksApi'
 import { useToast } from '../context/ToastContext'
 import ShortifyLogo from '../components/ShortifyLogo'
 
+function AccessUrlAnimation() {
+  return (
+    <>
+      <div className="loading-bg-emojis" aria-hidden="true">
+        <span className="emoji emoji-1">🔗</span>
+        <span className="emoji emoji-2">🔗</span>
+        <span className="emoji emoji-3">🔗</span>
+        <span className="emoji emoji-4">🔗</span>
+        <span className="emoji emoji-5">🔗</span>
+        <span className="emoji emoji-6">🔗</span>
+      </div>
+      <div className="loading-bg-grad" aria-hidden="true"></div>
+    </>
+  )
+}
+
 function AccessPage() {
   const { code } = useParams()
   const { addToast } = useToast()
@@ -53,7 +69,8 @@ function AccessPage() {
 
   if (isLoading) {
     return (
-      <main className="standalone-page">
+      <main className="standalone-page access-page">
+        <AccessUrlAnimation />
         <div className="standalone-card">
           <div className="loading-spinner" />
           <p style={{ marginTop: 16 }}>Loading secure link…</p>
@@ -64,7 +81,8 @@ function AccessPage() {
 
   if (!link && error) {
     return (
-      <main className="standalone-page">
+      <main className="standalone-page access-page">
+        <AccessUrlAnimation />
         <div className="standalone-card">
           <ShortifyLogo />
           <h1>Cannot open link</h1>
@@ -79,6 +97,7 @@ function AccessPage() {
 
   return (
     <main className="standalone-page access-page">
+      <AccessUrlAnimation />
       <div className="standalone-card access-card">
         <ShortifyLogo />
         <div className="standalone-icon">

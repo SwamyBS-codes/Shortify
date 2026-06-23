@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useParams } from 'react-router-dom'
 import './App.css'
 import { ThemeProvider } from './context/ThemeContext'
 import { AuthProvider } from './context/AuthContext'
@@ -49,8 +49,6 @@ function LoadingScreen() {
   )
 }
 
-import { useRef } from 'react'
-
 function DashboardGate() {
   const { isLoading } = useLinkWorkspace()
   const { isAuthLoading } = useAuth()
@@ -68,6 +66,16 @@ function DashboardGate() {
   return <DashboardPage />
 }
 
+function LinkDetailsPageWrapper() {
+  const { code } = useParams()
+  return <LinkDetailsPage key={code} />
+}
+
+function AnalyticsPageWrapper() {
+  const { code } = useParams()
+  return <AnalyticsPage key={code} />
+}
+
 function AppRoutes() {
   return (
     <Routes>
@@ -76,8 +84,8 @@ function AppRoutes() {
       <Route path="/scheduled/:code" element={<ScheduledPage />} />
       <Route path="/disabled/:code" element={<DisabledPage />} />
       <Route path="/expired/:code" element={<ExpiredPage />} />
-      <Route path="/links/:code" element={<LinkDetailsPage />} />
-      <Route path="/analytics/:code" element={<AnalyticsPage />} />
+      <Route path="/links/:code" element={<LinkDetailsPageWrapper />} />
+      <Route path="/analytics/:code" element={<AnalyticsPageWrapper />} />
     </Routes>
   )
 }
