@@ -2,7 +2,7 @@ import axios from 'axios'
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  (import.meta.env.PROD ? 'https://urlshortner-api.duckdns.org/api' : '/api')
+  (import.meta.env.PROD ? 'https://uurls.duckdns.org/api' : '/api')
 
 const httpClient = axios.create({
   baseURL: API_BASE_URL,

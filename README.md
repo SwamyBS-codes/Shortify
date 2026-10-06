@@ -110,10 +110,9 @@ REDIS_URL=redis://127.0.0.1:6379
 ```
 
 ### Client (`client/.env`)
-Create a `.env` file in the `client/` directory. Leave the URL commented out in development to use the Vite proxy:
+Create a `.env` file in the `client/` directory and set the production API endpoint:
 ```env
-# API Base URL (Leave commented out for local Vite proxy, uncomment for production builds)
-# VITE_API_BASE_URL=https://urlshortner-api.duckdns.org/api
+VITE_API_BASE_URL=https://uurls.duckdns.org/api
 ```
 
 ---
