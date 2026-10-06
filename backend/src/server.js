@@ -66,23 +66,22 @@ const redirectRateLimiter = createRateLimiter({
 app.set('trust proxy', 1)
 app.use(helmet())
 app.use(requestLogger)
-const rawClientUrls = process.env.CLIENT_URL || ''
-const allowedOrigins = rawClientUrls.split(',').map((s) => s.trim()).filter(Boolean)
-if (allowedOrigins.length === 0) {
-  allowedOrigins.push('http://localhost:5173')
-}
-// include known production frontend by default
-if (!allowedOrigins.includes('https://shortify-urlshortner.vercel.app')) {
-  allowedOrigins.push('https://shortify-urlshortner.vercel.app')
+const rawClientUrls = [process.env.CLIENT_URL || '', 'https://shortify-urlshortner.vercel.app', 'https://www.shortify-urlshortner.vercel.app', 'http://localhost:5173'].join(',')
+const allowedOrigins = [...new Set(rawClientUrls.split(',').map((s) => s.trim()).filter(Boolean))]
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true
+  if (allowedOrigins.includes(origin)) return true
+  return /^(https?:\/\/)?([a-z0-9-]+\.)*vercel\.app$/.test(origin) || /^(https?:\/\/)?localhost(:\d+)?$/.test(origin)
 }
 const corsOptions = {
   origin: (origin, callback) => {
-    if (!origin) return callback(null, true)
-    if (allowedOrigins.includes(origin)) return callback(null, true)
+    if (isAllowedOrigin(origin)) return callback(null, true)
     logger.warn('cors_origin_blocked', { origin })
     callback(null, false)
   },
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 }
 app.use(cors(corsOptions))
 // Some path-to-regexp versions reject '*' when registering routes.
