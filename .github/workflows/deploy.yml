@@ -1,0 +1,65 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy backend to AWS EC2
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install backend dependencies
+        run: npm ci --prefix backend
+
+      - name: Deploy to EC2 via SSH
+        uses: appleboy/ssh-action@v1.0.1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            set -e
+            APP_DIR="/home/${{ secrets.EC2_USERNAME }}/URL_Shortner"
+            REPO_URL="https://github.com/${{ github.repository }}.git"
+
+            mkdir -p "$APP_DIR"
+            if [ -d "$APP_DIR/.git" ]; then
+              cd "$APP_DIR"
+              git fetch --all
+              git reset --hard "origin/${{ github.ref_name }}"
+            else
+              git clone "$REPO_URL" "$APP_DIR"
+              cd "$APP_DIR"
+            fi
+
+            cd "$APP_DIR/backend"
+            npm ci --omit=dev
+
+            if ! command -v pm2 >/dev/null 2>&1; then
+              npm install -g pm2
+            fi
+
+            if pm2 show url-shortener-backend >/dev/null 2>&1; then
+              pm2 restart url-shortener-backend
+            else
+              pm2 start src/server.js --name url-shortener-backend --interpreter node --env-file .env
+            fi
+
+            pm2 save
+
+      - name: Health check
+        run: |
+          curl --fail --silent --show-error "http://${{ secrets.EC2_HOST }}:${{ secrets.EC2_PORT || '3001' }}/health" || true

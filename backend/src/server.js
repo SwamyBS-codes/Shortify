@@ -361,8 +361,8 @@ async function startServer() {
   app.listen(PORT, () => {
     logger.info('server_started', {
       port: PORT,
-      baseUrl: BASE_URL,
-      clientUrl: CLIENT_URL,
+      // baseUrl: BASE_URL,
+      // clientUrl: CLIENT_URL,
     })
   })
 }
